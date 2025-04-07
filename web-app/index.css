@@ -1,0 +1,31 @@
+#circles-group {
+    opacity: 0;
+    transition: opacity 0.3s ease;
+    pointer-events: auto;
+    /* Keep circles interactive even when invisible */
+}
+
+.hull-path {
+    pointer-events: auto;
+    /* Ensure the path can receive hover events */
+    transition: fill 0.3s ease, stroke-width 0.3s ease;
+}
+
+/* Show circles when hull is hovered */
+#hull-group:hover+#circles-group,
+#circles-group:hover {
+    opacity: 1;
+}
+
+/* Style for the active circle (when being dragged) */
+.gen-circle.active {
+    opacity: 1;
+    stroke: blue;
+    stroke-width: 2px;
+}
+
+/* Make the hull more prominent on hover */
+.hull-path:hover {
+    fill: rgba(255, 0, 0, 0.2);
+    stroke-width: 3px;
+}
