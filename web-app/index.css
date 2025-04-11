@@ -1,23 +1,28 @@
-.hull-path>.hull-circle {
+.hull-circle-layer>.hull-circle {
     opacity: 0;
 }
 
 .hull-circle,
-#circle-layer {
+.circle-layer {
     transition: opacity 0.3s ease;
     pointer-events: auto;
 }
 
 .hull-path {
+    cursor: grab;
     pointer-events: auto;
     /* Ensure the path can receive hover events */
     transition: fill 0.3s ease, stroke-width 0.3s ease;
 }
 
 /* Show circles when hull is hovered */
-#hull-layer:hover+#circles-layer,
-#circle-layer:hover {
-    opacity: 1;
+.hull-group:hover>.hull-circle-layer>.hull-circle,
+.circle-layer:hover {
+    opacity: 1 !important;
+}
+
+.hull-circle:hover {
+    cursor: grab;
 }
 
 /* Style for the active circle (when being dragged) */

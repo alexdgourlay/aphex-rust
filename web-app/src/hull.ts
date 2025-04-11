@@ -65,10 +65,15 @@ export class Hull {
         this.id = id
         this._circles = {}
 
+        this.group.id = this.id
+        this.group.className = 'hull-group'
+
         this._hullLayer.id = `${this.id}-hull-layer`
+        this._hullLayer.className = 'hull-layer'
         this.group.add(this._hullLayer as unknown as Shape)
 
         this._circleLayer.id = `${this.id}-circle-layer`
+        this._circleLayer.className = 'hull-circle-layer'
         this.group.add(this._circleLayer as unknown as Shape)
     }
 
