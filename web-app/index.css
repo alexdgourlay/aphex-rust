@@ -1,8 +1,11 @@
-#circles-group {
+.hull-path>.hull-circle {
     opacity: 0;
+}
+
+.hull-circle,
+#circle-layer {
     transition: opacity 0.3s ease;
     pointer-events: auto;
-    /* Keep circles interactive even when invisible */
 }
 
 .hull-path {
@@ -12,13 +15,13 @@
 }
 
 /* Show circles when hull is hovered */
-#hull-group:hover+#circles-group,
-#circles-group:hover {
+#hull-layer:hover+#circles-layer,
+#circle-layer:hover {
     opacity: 1;
 }
 
 /* Style for the active circle (when being dragged) */
-.gen-circle.active {
+.hull-circle.active {
     opacity: 1;
     stroke: blue;
     stroke-width: 2px;

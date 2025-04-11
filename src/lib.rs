@@ -25,15 +25,14 @@ macro_rules! console_log {
 }
 
 #[derive(Clone, Debug, Deserialize)]
-#[wasm_bindgen]
 struct Circle {
-    id: String,
-    x: f32,
-    y: f32,
-    radius: f32,
+    pub id: String,
+    pub x: f32,
+    pub y: f32,
+    pub radius: f32,
 }
 
-#[derive(Clone, Debug, PartialEq, Serialize)]
+#[derive(Clone,  Debug, PartialEq, Serialize)]
 struct TangentPoint {
     circle_id: String,
     x: f32,
@@ -43,7 +42,6 @@ struct TangentPoint {
 #[derive(Clone, Debug, PartialEq)]
 pub struct Tangent(TangentPoint, TangentPoint);
 
-#[wasm_bindgen]
 impl Circle {
     fn common_tangents(&self, other: &Self) -> [Option<Tangent>; 4] {
         let position = Point::new(self.x, self.y);
