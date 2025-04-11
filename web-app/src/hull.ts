@@ -59,7 +59,7 @@ export class Hull {
 
     group = new Group()
     _circleLayer = new Group()
-    _hullLayer = new Group()
+    hullLayer = new Group()
 
     constructor(id: string) {
         this.id = id
@@ -68,9 +68,9 @@ export class Hull {
         this.group.id = this.id
         this.group.className = 'hull-group'
 
-        this._hullLayer.id = `${this.id}-hull-layer`
-        this._hullLayer.className = 'hull-layer'
-        this.group.add(this._hullLayer as unknown as Shape)
+        this.hullLayer.id = `${this.id}-hull-layer`
+        this.hullLayer.className = 'hull-layer'
+        this.group.add(this.hullLayer as unknown as Shape)
 
         this._circleLayer.id = `${this.id}-circle-layer`
         this._circleLayer.className = 'hull-circle-layer'
@@ -84,12 +84,13 @@ export class Hull {
 
     _addHullPath(path: Path) {
         this._path = path
-        this._hullLayer.add(path as unknown as Shape)
+        this._path.id = `${this.id}-hull-path`
+        this.hullLayer.add(path as unknown as Shape)
     }
 
     _removeHullPath() {
         if (this._path) {
-            this._hullLayer.remove(this._path as unknown as Shape)
+            this.hullLayer.remove(this._path as unknown as Shape)
             this._path = null
         }
     }

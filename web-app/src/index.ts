@@ -6,6 +6,9 @@ import { Shape } from 'two.js/src/shape'
 import { Downloader, SvgExporter } from './export'
 import { Hull, HullCircle } from './hull'
 
+const MIN_CIRCLE_RADIUS = 10
+const MAX_CIRCLE_RADIUS = 200
+
 class Scene {
     two: Two
     rootEl: HTMLElement
@@ -13,6 +16,7 @@ class Scene {
     hulls: Record<string, Hull> = {}
     _activeHull: Hull | null = null
 
+    selectedHull: Hull | null = null
     selectedHullCircle: HullCircle | null = null
 
     mouseDownPosition: Vector | null = null
@@ -37,27 +41,62 @@ class Scene {
         })
 
         let moveOffset: Vector | null = null
+        let initialRadius: number | null = null
 
         // Update the mousemove event handler
         this.rootEl.addEventListener('mousemove', (event) => {
-            if (!this.selectedHullCircle || !this.mouseDownPosition) return
+            if (!this.mouseDownPosition) {
+                return
+            }
 
-            const { clientX, clientY } = event
+            const { shiftKey } = event
 
-            if (!moveOffset) {
-                moveOffset = Vector.sub(
-                    this.selectedHullCircle.circle.translation,
-                    this.mouseDownPosition
+            const mousePos = new Two.Vector(event.clientX, event.clientY)
+
+            if (this.selectedHullCircle) {
+                const circle = this.selectedHullCircle.circle
+
+                // If shift key is pressed, resize the circle
+                if (shiftKey) {
+                    if (!initialRadius) {
+                        initialRadius = circle.radius
+                    }
+
+                    const distance = this.mouseDownPosition.y - mousePos.y
+                    const newRadius = initialRadius + distance
+
+                    circle.radius = Math.min(
+                        Math.max(newRadius, MIN_CIRCLE_RADIUS),
+                        MAX_CIRCLE_RADIUS
+                    )
+                } else {
+                    if (!moveOffset) {
+                        moveOffset = Vector.sub(
+                            circle.translation,
+                            this.mouseDownPosition
+                        )
+                    }
+
+                    // Normal mode - move circle
+                    circle.translation = Vector.add(mousePos, moveOffset)
+                }
+
+                this.drawHull(this._activeHull!)
+            } else if (this.selectedHull) {
+                if (!moveOffset) {
+                    moveOffset = Vector.sub(
+                        this.selectedHull.group.translation,
+                        this.mouseDownPosition
+                    )
+                }
+
+                this.selectedHull.group.translation = Vector.add(
+                    mousePos,
+                    moveOffset
                 )
             }
 
-            // Normal mode - move circle
-            this.selectedHullCircle.circle.translation = Vector.add(
-                new Vector(clientX, clientY),
-                moveOffset
-            )
-
-            this.drawHull(this._activeHull!)
+            this.two.update()
         })
 
         this.rootEl.addEventListener('mouseup', () => {
@@ -71,7 +110,10 @@ class Scene {
                 this.selectedHullCircle = null
             }
 
+            this.selectedHull = null
+
             moveOffset = null
+            initialRadius = null
             this.mouseDownPosition = null
         })
 
@@ -83,9 +125,22 @@ class Scene {
 
     addHull() {
         const id = `hull-${Object.keys(this.hulls).length + 1}`
+
         const hull = new Hull(id)
+
         this.hulls[id] = hull
         this.two.add(hull.group as unknown as Shape)
+
+        this.two.update()
+
+        let hullLayerEl = document.getElementById(hull.hullLayer.id)
+
+        if (hullLayerEl) {
+            hullLayerEl.addEventListener('mousedown', () => {
+                this.selectedHull = hull
+            })
+        }
+
         return hull
     }
 
@@ -117,12 +172,12 @@ class Scene {
         })
 
         this.drawHull(this._activeHull)
+        this.two.update()
     }
 
     drawHull(hull: Hull) {
         hull.erase()
         hull.draw()
-        this.two.update()
     }
 }
 
