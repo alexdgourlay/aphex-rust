@@ -122,7 +122,8 @@ export class Hull {
 
             const next = tangentPoints[(i + 1) % tangentPoints.length]
 
-            const { circle, hullVertices: hullCircleVertices } = this._circles[current.circle_id]
+            const { circle, hullVertices: hullCircleVertices } =
+                this._circles[current.circle_id]
 
             if (current.circle_id === next.circle_id) {
                 // Points are on the same circle, add an arc.
@@ -143,15 +144,17 @@ export class Hull {
                 if (angleDiff > Math.PI) angleDiff -= 2 * Math.PI
 
                 for (let j = 0; j <= RENDER_OPTIONS.arcResolution; j++) {
-                    const t = j / RENDER_OPTIONS.arcResolution;
-                    const angle = startAngle + angleDiff * t;
-                    const x = circle.translation.x + circle.radius * Math.cos(angle);
-                    const y = circle.translation.y + circle.radius * Math.sin(angle);
+                    const t = j / RENDER_OPTIONS.arcResolution
+                    const angle = startAngle + angleDiff * t
+                    const x =
+                        circle.translation.x + circle.radius * Math.cos(angle)
+                    const y =
+                        circle.translation.y + circle.radius * Math.sin(angle)
 
-                    const vertex = new Two.Anchor(x, y);
+                    const vertex = new Two.Anchor(x, y)
 
-                    hullCircleVertices.push(vertex);
-                    path.vertices.push(vertex);
+                    hullCircleVertices.push(vertex)
+                    path.vertices.push(vertex)
                 }
             } else {
                 // Points are on different circles, add a straight line
