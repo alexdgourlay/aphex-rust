@@ -1,4 +1,4 @@
-import { generate } from 'aphex-rust'
+import { generate, is_circle_inside_polygon } from 'aphex-rust'
 import Two from 'two.js'
 import { Anchor } from 'two.js/src/anchor'
 import { Group } from 'two.js/src/group'
@@ -36,7 +36,12 @@ export class HullCircle {
         }
     }
 
-    toStruct() {
+    isInside(hull: Hull): boolean {
+        if (!hull.hasPath) return false
+        return is_circle_inside_polygon(this.toJsValue(), hull.toJsValue())
+    }
+
+    toJsValue() {
         return {
             id: this.id,
             x: this.circle.translation.x,
@@ -46,16 +51,10 @@ export class HullCircle {
     }
 }
 
-type TangentPoint = {
-    circle_id: string
-    x: number
-    y: number
-}
-
 export class Hull {
     id: string
-    _circles: Record<string, HullCircle>
-    _path: Path | null = null
+    #circles: Record<string, HullCircle>
+    #path: Path | null = null
 
     group = new Group()
     _circleLayer = new Group()
@@ -63,7 +62,7 @@ export class Hull {
 
     constructor(id: string) {
         this.id = id
-        this._circles = {}
+        this.#circles = {}
 
         this.group.id = this.id
         this.group.className = 'hull-group'
@@ -77,39 +76,51 @@ export class Hull {
         this.group.add(this._circleLayer as unknown as Shape)
     }
 
-    addHullCircle(hullCircle: HullCircle) {
-        this._circles[hullCircle.id] = hullCircle
-        this._circleLayer.add(hullCircle.circle as unknown as Shape)
-    }
-
-    _addHullPath(path: Path) {
-        this._path = path
-        this._path.id = `${this.id}-hull-path`
+    #addHullPath(path: Path) {
+        this.#path = path
+        this.#path.id = `${this.id}-hull-path`
         this.hullLayer.add(path as unknown as Shape)
     }
 
-    _removeHullPath() {
-        if (this._path) {
-            this.hullLayer.remove(this._path as unknown as Shape)
-            this._path = null
+    #removeHullPath() {
+        if (this.#path) {
+            this.hullLayer.remove(this.#path as unknown as Shape)
+            this.#path = null
         }
     }
 
-    erase() {
-        this._removeHullPath()
+    get hasPath() {
+        return this.#path !== null
+    }
 
-        for (const circle of Object.values(this._circles)) {
+    get circleCount() {
+        return Object.keys(this.#circles).length
+    }
+
+    addHullCircle(hullCircle: HullCircle) {
+        this.#circles[hullCircle.id] = hullCircle
+        this._circleLayer.add(hullCircle.circle as unknown as Shape)
+    }
+
+    erase() {
+        this.#removeHullPath()
+
+        for (const circle of Object.values(this.#circles)) {
             circle.hullVertices = []
         }
     }
 
     draw(): Path | null {
-        if (Object.keys(this._circles).length < 3) {
+        if (Object.keys(this.#circles).length < 3) {
             return null
         }
 
-        const tangentPoints: TangentPoint[] = generate(
-            Object.values(this._circles).map((circle) => circle.toStruct())
+        const tangentPoints: {
+            circle_id: string
+            x: number
+            y: number
+        }[] = generate(
+            Object.values(this.#circles).map((circle) => circle.toJsValue())
         )
 
         if (tangentPoints.length === 0) {
@@ -129,7 +140,7 @@ export class Hull {
             const next = tangentPoints[(i + 1) % tangentPoints.length]
 
             const { circle, hullVertices: hullCircleVertices } =
-                this._circles[current.circle_id]
+                this.#circles[current.circle_id]
 
             if (current.circle_id === next.circle_id) {
                 // Points are on the same circle, add an arc.
@@ -171,7 +182,16 @@ export class Hull {
             }
         }
 
-        this._addHullPath(path)
+        this.#addHullPath(path)
         return path
+    }
+
+    toJsValue() {
+        if (!this.#path) return null
+
+        return this.#path.vertices.map((v) => ({
+            x: v.x,
+            y: v.y,
+        }))
     }
 }

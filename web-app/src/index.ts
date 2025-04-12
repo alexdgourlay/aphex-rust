@@ -159,7 +159,9 @@ class Scene {
             this._activeHull = newAciveHull
         }
 
-        this._activeHull.addHullCircle(hullCircle)
+        if (this._activeHull.circleCount < 3 || hullCircle.isInside(this._activeHull)) {
+            this._activeHull.addHullCircle(hullCircle)
+        } 
 
         // Have to update here to get the circleEl below.
         this.two.update()

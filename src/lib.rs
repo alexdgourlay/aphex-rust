@@ -12,6 +12,7 @@ use wasm_bindgen::prelude::*;
 #[global_allocator]
 static ALLOC: wee_alloc::WeeAlloc = wee_alloc::WeeAlloc::INIT;
 
+
 #[wasm_bindgen]
 extern "C" {
     #[wasm_bindgen(js_namespace = console)]
@@ -25,6 +26,12 @@ macro_rules! console_log {
 }
 
 #[derive(Clone, Debug, Deserialize)]
+struct Coord {
+    x: f32,
+    y: f32,
+}
+
+#[derive(Clone, Debug, Deserialize)]
 struct Circle {
     pub id: String,
     pub x: f32,
@@ -32,7 +39,7 @@ struct Circle {
     pub radius: f32,
 }
 
-#[derive(Clone,  Debug, PartialEq, Serialize)]
+#[derive(Clone, Debug, PartialEq, Serialize)]
 struct TangentPoint {
     circle_id: String,
     x: f32,
@@ -43,6 +50,31 @@ struct TangentPoint {
 pub struct Tangent(TangentPoint, TangentPoint);
 
 impl Circle {
+    fn intersects_line_segment(&self, p1: &Coord, p2: &Coord) -> bool {
+        let circle_center = Point::new(self.x, self.y);
+
+        // Vector from point 1 to point 2
+        let dx = p2.x - p1.x;
+        let dy = p2.y - p1.y;
+
+        // Length of the line segment squared
+        let length_squared = dx * dx + dy * dy;
+
+        // Calculate the closest point on the line segment to the circle center
+        let mut t = ((self.x - p1.x) * dx + (self.y - p1.y) * dy) / length_squared;
+        t = t.max(0.0).min(1.0); // Clamp to [0,1] for line segment
+
+        let closest_x = p1.x + t * dx;
+        let closest_y = p1.y + t * dy;
+
+        let closest_point = Point::new(closest_x, closest_y);
+
+        // Check if the closest point is within the circle radius
+        let distance = circle_center.euclidean_distance(&closest_point);
+
+        distance <= self.radius
+    }
+
     fn common_tangents(&self, other: &Self) -> [Option<Tangent>; 4] {
         let position = Point::new(self.x, self.y);
         let other_position = Point::new(other.x, other.y);
@@ -101,10 +133,10 @@ fn to_identifier_string(point: &Point<f32>) -> String {
 }
 
 #[wasm_bindgen]
-pub fn generate(circles: Box<[JsValue]>) -> Box<[JsValue]> {
+pub fn generate(circles_js: Box<[JsValue]>) -> Box<[JsValue]> {
     use itertools::Itertools;
 
-    let circles: Vec<Circle> = circles
+    let circles: Vec<Circle> = circles_js
         .iter()
         .map(|circle| serde_wasm_bindgen::from_value(circle.clone()).unwrap_throw())
         .collect();
@@ -153,4 +185,64 @@ pub fn generate(circles: Box<[JsValue]>) -> Box<[JsValue]> {
         .collect();
 
     tangent_point_hull.into_boxed_slice()
+}
+
+// Function to check if a point is inside a polygon using ray casting algorithm
+fn is_point_in_polygon(point: &Point<f32>, polygon: &[Coord]) -> bool {
+    if polygon.len() < 3 {
+        return false;
+    }
+
+    let mut inside = false;
+    let x = point.x();
+    let y = point.y();
+
+    for i in 0..polygon.len() {
+        let j = if i == 0 { polygon.len() - 1 } else { i - 1 };
+
+        let xi = polygon[i].x;
+        let yi = polygon[i].y;
+        let xj = polygon[j].x;
+        let yj = polygon[j].y;
+
+        let intersect = ((yi > y) != (yj > y)) && (x < (xj - xi) * (y - yi) / (yj - yi) + xi);
+
+        if intersect {
+            inside = !inside;
+        }
+    }
+
+    inside
+}
+
+#[wasm_bindgen]
+pub fn is_circle_inside_polygon(circle_js: JsValue, polygon_path_js: JsValue) -> bool {
+    let circle: Circle = serde_wasm_bindgen::from_value(circle_js).unwrap_throw();
+
+    let hull_path: Vec<Coord> = serde_wasm_bindgen::from_value(polygon_path_js).unwrap_throw();
+
+    if hull_path.len() < 3 {
+        return true;
+    }
+
+    // Check if circle center is inside the hull
+    let circle_center = Point::new(circle.x, circle.y);
+
+    if is_point_in_polygon(&circle_center, &hull_path) {
+        return true;
+    }
+
+    // Check if circle intersects with any hull edge
+    for i in 0..hull_path.len() {
+        let j = (i + 1) % hull_path.len();
+
+        let v1 = &hull_path[i];
+        let v2 = &hull_path[j];
+
+        if circle.intersects_line_segment(v1, v2) {
+            return true;
+        }
+    }
+
+    false
 }
