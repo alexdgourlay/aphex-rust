@@ -102,6 +102,24 @@ export class Hull {
         this._circleLayer.add(hullCircle.circle as unknown as Shape)
     }
 
+    removeHullCircle(circleId: string) {
+        const circle = this.#circles[circleId]
+        if (circle) {
+            this._circleLayer.remove(circle.circle as unknown as Shape)
+            delete this.#circles[circleId]
+            return circle
+        }
+        return null
+    }
+
+    getCircle(circleId: string): HullCircle | undefined {
+        return this.#circles[circleId];
+    }
+
+    hasCircle(circleId: string): boolean {
+        return circleId in this.#circles;
+    }
+
     erase() {
         this.#removeHullPath()
 

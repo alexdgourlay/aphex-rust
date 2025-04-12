@@ -107,6 +107,16 @@ class Scene {
                 if (circleEl) {
                     circleEl.classList.remove('active')
                 }
+
+                if (this._activeHull) {
+                    if (
+                        !this._activeHull.hasCircle(this.selectedHullCircle.id) &&
+                        this.selectedHullCircle.isInside(this._activeHull)
+                    ) {
+                        this._activeHull.addHullCircle(this.selectedHullCircle)
+                    }
+                }
+
                 this.selectedHullCircle = null
             }
 
@@ -159,9 +169,12 @@ class Scene {
             this._activeHull = newAciveHull
         }
 
-        if (this._activeHull.circleCount < 3 || hullCircle.isInside(this._activeHull)) {
+        if (
+            this._activeHull.circleCount < 3 ||
+            hullCircle.isInside(this._activeHull)
+        ) {
             this._activeHull.addHullCircle(hullCircle)
-        } 
+        }
 
         // Have to update here to get the circleEl below.
         this.two.update()
@@ -180,6 +193,38 @@ class Scene {
     drawHull(hull: Hull) {
         hull.erase()
         hull.draw()
+    }
+
+    // Add this new method to check if circle should be moved to active hull
+    checkCircleActiveHullMembership(circle: HullCircle) {
+        // If there's no active hull, nothing to do
+        if (!this._activeHull) return
+
+        // Find which hull the circle currently belongs to
+        let currentHull: Hull | null = null
+        for (const hull of Object.values(this.hulls)) {
+            if (hull.hasCircle(circle.id)) {
+                currentHull = hull
+                break
+            }
+        }
+
+        // If circle doesn't belong to any hull or already belongs to active hull, nothing to do
+        if (!currentHull || currentHull === this._activeHull) return
+
+        // Check if the circle is now inside the active hull
+        if (circle.isInside(this._activeHull)) {
+            // Circle has moved into the active hull, so move it there
+            currentHull.removeHullCircle(circle.id)
+            this._activeHull.addHullCircle(circle)
+
+            // Update both hulls
+            this.drawHull(currentHull)
+            this.drawHull(this._activeHull)
+
+            // Update the display
+            this.two.update()
+        }
     }
 }
 
