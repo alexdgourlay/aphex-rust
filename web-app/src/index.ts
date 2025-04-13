@@ -4,7 +4,13 @@ import { Vector } from 'two.js/src/vector'
 
 import { Shape } from 'two.js/src/shape'
 import { Downloader, SvgExporter } from './export'
-import { Hull, HullCircle } from './hull'
+import {
+    Hull,
+    type HullCircle,
+    InnerHullCircle,
+    OuterHullCircle,
+} from './hull'
+import { PressedKeys } from './pressedKeys'
 
 const MIN_CIRCLE_RADIUS = 10
 const MAX_CIRCLE_RADIUS = 200
@@ -14,11 +20,15 @@ class Scene {
     rootEl: HTMLElement
 
     hulls: Record<string, Hull> = {}
-    _activeHull: Hull | null = null
+
+    activeHull: Hull | null = null
 
     selectedHull: Hull | null = null
-    selectedHullCircle: HullCircle | null = null
+    selectedHullCircle: InnerHullCircle | null = null
 
+    uncontainedCircles: Record<string, InnerHullCircle> = {}
+
+    pressedKeys = new PressedKeys()
     mouseDownPosition: Vector | null = null
 
     constructor(rootEl: HTMLElement) {
@@ -37,7 +47,11 @@ class Scene {
 
     addEventListeners() {
         this.rootEl.addEventListener('dblclick', ({ clientX, clientY }) => {
-            this.addHullCircle(clientX, clientY)
+            if (this.pressedKeys.alt) {
+                this.addSubractiveHullCircle(clientX, clientY)
+            } else {
+                this.addAdditiveHullCircle(clientX, clientY)
+            }
         })
 
         let moveOffset: Vector | null = null
@@ -49,7 +63,7 @@ class Scene {
                 return
             }
 
-            const { shiftKey } = event
+            const shiftKey = this.pressedKeys.shift
 
             const mousePos = new Two.Vector(event.clientX, event.clientY)
 
@@ -81,7 +95,7 @@ class Scene {
                     circle.translation = Vector.add(mousePos, moveOffset)
                 }
 
-                this.drawHull(this._activeHull!)
+                this.drawHull(this.activeHull!)
             } else if (this.selectedHull) {
                 if (!moveOffset) {
                     moveOffset = Vector.sub(
@@ -105,15 +119,17 @@ class Scene {
                     this.selectedHullCircle.circle.id
                 )
                 if (circleEl) {
-                    circleEl.classList.remove('active')
+                    circleEl.classList.remove('selected')
                 }
 
-                if (this._activeHull) {
+                if (this.activeHull) {
                     if (
-                        !this._activeHull.hasCircle(this.selectedHullCircle.id) &&
-                        this.selectedHullCircle.isInside(this._activeHull)
+                        !this.activeHull.hasCircle(
+                            this.selectedHullCircle.id
+                        ) &&
+                        this.selectedHullCircle.isInside(this.activeHull)
                     ) {
-                        this._activeHull.addHullCircle(this.selectedHullCircle)
+                        this.activeHull.addHullCircle(this.selectedHullCircle)
                     }
                 }
 
@@ -134,13 +150,12 @@ class Scene {
     }
 
     addHull() {
-        const id = `hull-${Object.keys(this.hulls).length + 1}`
+        const id = `hull-${Object.keys(this.hulls).length}`
 
         const hull = new Hull(id)
-
         this.hulls[id] = hull
-        this.two.add(hull.group as unknown as Shape)
 
+        this.two.add(hull.group as unknown as Shape)
         this.two.update()
 
         let hullLayerEl = document.getElementById(hull.hullLayer.id)
@@ -154,26 +169,40 @@ class Scene {
         return hull
     }
 
-    addHullCircle(x: number, y: number) {
+    addAdditiveHullCircle(x: number, y: number) {
         const circle = this.two.makeCircle(x, y, 50)
+        const hullCircle = new InnerHullCircle(circle)
+        this.addHullCircle(hullCircle)
+    }
 
-        const hullCircle = new HullCircle(circle)
+    addSubractiveHullCircle(x: number, y: number) {
+        const circle = this.two.makeCircle(x, y, 50)
+        const hullCircle = new OuterHullCircle(circle)
+        this.addHullCircle(hullCircle)
+    }
 
-        if (!this._activeHull) {
+    addHullCircle(hullCircle: HullCircle) {
+        if (!this.activeHull) {
             let newAciveHull = Object.values(this.hulls)[0]
 
             if (!newAciveHull) {
                 newAciveHull = this.addHull()
             }
 
-            this._activeHull = newAciveHull
+            this.activeHull = newAciveHull
         }
 
         if (
-            this._activeHull.circleCount < 3 ||
-            hullCircle.isInside(this._activeHull)
+            this.activeHull.circleCount < 3 ||
+            hullCircle.isInside(this.activeHull)
         ) {
-            this._activeHull.addHullCircle(hullCircle)
+            this.activeHull.addHullCircle(hullCircle)
+
+            if (this.uncontainedCircles[hullCircle.id]) {
+                delete this.uncontainedCircles[hullCircle.id]
+            }
+        } else {
+            this.uncontainedCircles[hullCircle.id] = hullCircle
         }
 
         // Have to update here to get the circleEl below.
@@ -183,48 +212,16 @@ class Scene {
 
         circleEl.addEventListener('mousedown', () => {
             this.selectedHullCircle = hullCircle
-            circleEl.classList.add('active')
+            circleEl.classList.add('selected')
         })
 
-        this.drawHull(this._activeHull)
+        this.drawHull(this.activeHull)
         this.two.update()
     }
 
     drawHull(hull: Hull) {
         hull.erase()
         hull.draw()
-    }
-
-    // Add this new method to check if circle should be moved to active hull
-    checkCircleActiveHullMembership(circle: HullCircle) {
-        // If there's no active hull, nothing to do
-        if (!this._activeHull) return
-
-        // Find which hull the circle currently belongs to
-        let currentHull: Hull | null = null
-        for (const hull of Object.values(this.hulls)) {
-            if (hull.hasCircle(circle.id)) {
-                currentHull = hull
-                break
-            }
-        }
-
-        // If circle doesn't belong to any hull or already belongs to active hull, nothing to do
-        if (!currentHull || currentHull === this._activeHull) return
-
-        // Check if the circle is now inside the active hull
-        if (circle.isInside(this._activeHull)) {
-            // Circle has moved into the active hull, so move it there
-            currentHull.removeHullCircle(circle.id)
-            this._activeHull.addHullCircle(circle)
-
-            // Update both hulls
-            this.drawHull(currentHull)
-            this.drawHull(this._activeHull)
-
-            // Update the display
-            this.two.update()
-        }
     }
 }
 

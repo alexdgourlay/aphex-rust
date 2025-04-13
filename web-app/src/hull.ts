@@ -10,29 +10,32 @@ const RENDER_OPTIONS = {
     arcResolution: 128,
 }
 
+type CircleType = 'inner' | 'outer'
+
 export class HullCircle {
     id: string
+    type: CircleType
     className = 'hull-circle'
 
     circle: Circle
     hullVertices: Anchor[] = []
 
-    constructor(circle: Circle) {
-        circle.stroke = 'black'
-        circle.fill = 'rgba(0, 0, 0, 0.1)'
-        circle.linewidth = 2
+    constructor(circle: Circle, type: CircleType) {
         circle.className = this.className
 
         this.circle = circle
         this.id = circle.id
+        this.type = type
         this.hullVertices = []
     }
 
     set contained(val: boolean) {
         if (val) {
-            this.circle.className = `${this.className} contained`
+            this.circle.classList.push('contained')
         } else {
-            this.circle.className = this.className
+            this.circle.classList = this.circle.classList.filter(
+                (c) => c !== 'contained'
+            )
         }
     }
 
@@ -44,6 +47,7 @@ export class HullCircle {
     toJsValue() {
         return {
             id: this.id,
+            circle_type: this.type,
             x: this.circle.translation.x,
             y: this.circle.translation.y,
             radius: this.circle.radius,
@@ -51,18 +55,38 @@ export class HullCircle {
     }
 }
 
+export class InnerHullCircle extends HullCircle {
+    constructor(circle: Circle) {
+        super(circle, 'inner')
+        this.circle.classList.push('inner')
+    }
+}
+
+export class OuterHullCircle extends HullCircle {
+    pairedCircles: [InnerHullCircle, InnerHullCircle] | null = null
+
+    constructor(circle: Circle) {
+        super(circle, 'outer')
+        this.circle.classList.push('outer')
+    }
+
+    pairWith(circle1: InnerHullCircle, circle2: InnerHullCircle) {
+        this.pairedCircles = [circle1, circle2]
+    }
+}
+
 export class Hull {
     id: string
-    #circles: Record<string, HullCircle>
+
+    #circles: Record<string, HullCircle> = {}
     #path: Path | null = null
 
     group = new Group()
-    _circleLayer = new Group()
+    #circleLayer = new Group()
     hullLayer = new Group()
 
     constructor(id: string) {
         this.id = id
-        this.#circles = {}
 
         this.group.id = this.id
         this.group.className = 'hull-group'
@@ -71,9 +95,9 @@ export class Hull {
         this.hullLayer.className = 'hull-layer'
         this.group.add(this.hullLayer as unknown as Shape)
 
-        this._circleLayer.id = `${this.id}-circle-layer`
-        this._circleLayer.className = 'hull-circle-layer'
-        this.group.add(this._circleLayer as unknown as Shape)
+        this.#circleLayer.id = `${this.id}-circle-layer`
+        this.#circleLayer.className = 'hull-circle-layer'
+        this.group.add(this.#circleLayer as unknown as Shape)
     }
 
     #addHullPath(path: Path) {
@@ -99,25 +123,23 @@ export class Hull {
 
     addHullCircle(hullCircle: HullCircle) {
         this.#circles[hullCircle.id] = hullCircle
-        this._circleLayer.add(hullCircle.circle as unknown as Shape)
+        this.#circleLayer.add(hullCircle.circle as unknown as Shape)
     }
 
     removeHullCircle(circleId: string) {
         const circle = this.#circles[circleId]
         if (circle) {
-            this._circleLayer.remove(circle.circle as unknown as Shape)
+            this.#circleLayer.remove(circle.circle as unknown as Shape)
             delete this.#circles[circleId]
-            return circle
         }
-        return null
     }
 
     getCircle(circleId: string): HullCircle | undefined {
-        return this.#circles[circleId];
+        return this.#circles[circleId]
     }
 
     hasCircle(circleId: string): boolean {
-        return circleId in this.#circles;
+        return circleId in this.#circles
     }
 
     erase() {
@@ -147,9 +169,6 @@ export class Hull {
 
         const path = new Two.Path()
         path.closed = true
-        path.stroke = 'rgba(255, 0, 0, 0.8)'
-        path.fill = 'rgba(255, 0, 0, 0.1)'
-        path.linewidth = 2
         path.className = 'hull-path'
 
         for (let i = 0; i < tangentPoints.length; i++) {

@@ -12,7 +12,6 @@ use wasm_bindgen::prelude::*;
 #[global_allocator]
 static ALLOC: wee_alloc::WeeAlloc = wee_alloc::WeeAlloc::INIT;
 
-
 #[wasm_bindgen]
 extern "C" {
     #[wasm_bindgen(js_namespace = console)]
@@ -31,14 +30,24 @@ struct Coord {
     y: f32,
 }
 
+
+#[derive(Copy, Clone, Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub enum CircleType {
+    Inner,
+    Outer,
+}
+
 #[derive(Clone, Debug, Deserialize)]
 struct Circle {
     pub id: String,
+    pub circle_type: CircleType,
     pub x: f32,
     pub y: f32,
     pub radius: f32,
 }
 
+#[wasm_bindgen]
 #[derive(Clone, Debug, PartialEq, Serialize)]
 struct TangentPoint {
     circle_id: String,
@@ -136,10 +145,22 @@ fn to_identifier_string(point: &Point<f32>) -> String {
 pub fn generate(circles_js: Box<[JsValue]>) -> Box<[JsValue]> {
     use itertools::Itertools;
 
+    console_log!("Circles: {:?}", circles_js);
+
     let circles: Vec<Circle> = circles_js
         .iter()
-        .map(|circle| serde_wasm_bindgen::from_value(circle.clone()).unwrap_throw())
+        .map(
+            |circle| match serde_wasm_bindgen::from_value(circle.clone()) {
+                Ok(c) => c,
+                Err(e) => {
+                    console_log!("Error deserializing: {:?}", e);
+                    panic!("Deserialization error");
+                }
+            },
+        )
         .collect();
+
+    console_log!("Circles: {:?}", circles);
 
     let mut points = Vec::new();
     let mut points_set: HashMap<String, TangentPoint> = HashMap::new();

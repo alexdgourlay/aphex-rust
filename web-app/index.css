@@ -1,3 +1,16 @@
+@media (prefers-color-scheme: dark) {
+    body {
+        background-color: black;
+        color: white;
+    }
+}
+
+.hull-path {
+    fill: rgba(255, 0, 0, 0.1);
+    stroke-width: 3px;
+    stroke: rgba(255, 0, 0, 0.8);
+}
+
 .hull-circle-layer>.hull-circle {
     opacity: 0;
 }
@@ -15,24 +28,33 @@
     transition: fill 0.3s ease, stroke-width 0.3s ease;
 }
 
-/* Show circles when hull is hovered */
+
 .hull-group:hover>.hull-circle-layer>.hull-circle,
 .circle-layer:hover {
-    opacity: 1 !important;
+    opacity: 1;
+}
+
+.hull-circle {
+    stroke: black;
+    fill: rgba(0, 0, 0, 0.1);
+    stroke-width: 3px;
 }
 
 .hull-circle:hover {
     cursor: grab;
 }
 
-/* Style for the active circle (when being dragged) */
-.hull-circle.active {
+.hull-circle.selected {
     opacity: 1;
     stroke: blue;
     stroke-width: 2px;
 }
 
-/* Make the hull more prominent on hover */
+.hull-circle.outer {
+    stroke-dasharray: 4 2;
+    stroke-dashoffset: 1px;
+}
+
 .hull-path:hover {
     fill: rgba(255, 0, 0, 0.2);
     stroke-width: 3px;
