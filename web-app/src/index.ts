@@ -247,9 +247,14 @@ class Scene {
         }
     }
 
+    deleteHull(hull: Hull) {
+        this.two.remove(hull.group as unknown as Shape)
+        delete this.hulls[hull.id]
+    }
+
     deleteSelected() {
         if (this.selectedHull) {
-            this.selectedHull.erase()
+            this.deleteHull(this.selectedHull)
             this.selectedHull = null
         }
 

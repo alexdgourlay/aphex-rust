@@ -29,16 +29,6 @@ export class HullCircle {
         this.hullVertices = []
     }
 
-    set contained(val: boolean) {
-        if (val) {
-            this.circle.classList.push('contained')
-        } else {
-            this.circle.classList = this.circle.classList.filter(
-                (c) => c !== 'contained'
-            )
-        }
-    }
-
     isInside(hull: Hull): boolean {
         if (!hull.hasPath) return false
         return is_circle_inside_polygon(this.toJsValue(), hull.toJsValue())
@@ -152,7 +142,7 @@ export class Hull {
     }
 
     draw(): Path | null {
-        if (Object.keys(this.#circles).length < 3) {
+        if (Object.keys(this.#circles).length < 2) {
             return null
         }
 

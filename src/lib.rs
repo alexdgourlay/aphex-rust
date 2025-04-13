@@ -145,8 +145,6 @@ fn to_identifier_string(point: &Point<f32>) -> String {
 pub fn generate(circles_js: Box<[JsValue]>) -> Box<[JsValue]> {
     use itertools::Itertools;
 
-    console_log!("Circles: {:?}", circles_js);
-
     let circles: Vec<Circle> = circles_js
         .iter()
         .map(
@@ -159,8 +157,6 @@ pub fn generate(circles_js: Box<[JsValue]>) -> Box<[JsValue]> {
             },
         )
         .collect();
-
-    console_log!("Circles: {:?}", circles);
 
     let mut points = Vec::new();
     let mut points_set: HashMap<String, TangentPoint> = HashMap::new();
