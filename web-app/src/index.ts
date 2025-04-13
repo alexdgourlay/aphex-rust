@@ -37,6 +37,13 @@ class Scene {
         this.addEventListeners()
     }
 
+    logState() {
+        console.log('Active Hull:', this.activeHull)
+        console.log('Selected Hull:', this.selectedHull)
+        console.log('Selected Circle:', this.selectedHullCircle)
+        console.log('Uncontained Circles:', this.uncontainedCircles)
+    }
+
     get svgElement(): SVGElement {
         return this.two.renderer.domElement
     }
@@ -179,19 +186,7 @@ class Scene {
             this.activeHull = newAciveHull
         }
 
-        if (
-            (hullCircle instanceof InnerHullCircle &&
-                this.activeHull.circleCount < 3) ||
-            hullCircle.isInside(this.activeHull)
-        ) {
-            this.activeHull.addHullCircle(hullCircle)
-
-            if (this.uncontainedCircles[hullCircle.id]) {
-                delete this.uncontainedCircles[hullCircle.id]
-            }
-        } else {
-            this.uncontainedCircles[hullCircle.id] = hullCircle
-        }
+        this.placeHullCircle(hullCircle)
 
         // Have to update here to get the circleEl below.
         this.two.update()
@@ -249,6 +244,7 @@ class Scene {
 
     deleteHull(hull: Hull) {
         this.two.remove(hull.group as unknown as Shape)
+        this.activeHull = null
         delete this.hulls[hull.id]
     }
 
