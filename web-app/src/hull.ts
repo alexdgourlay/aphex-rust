@@ -132,6 +132,7 @@ export class Hull {
             this.#circleLayer.remove(circle.circle as unknown as Shape)
             delete this.#circles[circleId]
         }
+        return circle
     }
 
     getCircle(circleId: string): HullCircle | undefined {

@@ -235,35 +235,46 @@ fn is_point_in_polygon(point: &Point<f32>, polygon: &[Coord]) -> bool {
 
     inside
 }
+fn circle_intersects_polygon(circle: &Circle, polygon: &[Coord]) -> (bool, Option<Vec<Coord>>) {
+    if polygon.len() < 3 {
+        return (true, None);
+    }
+
+    // Check if circle center is inside the polygon
+    let circle_center = Point::new(circle.x, circle.y);
+    if is_point_in_polygon(&circle_center, polygon) {
+        return (true, None);
+    }
+
+    // Check if circle intersects with any polygon edge
+    for i in 0..polygon.len() {
+        let j = (i + 1) % polygon.len();
+
+        let v1 = &polygon[i];
+        let v2 = &polygon[j];
+
+        if circle.intersects_line_segment(v1, v2) {
+            let segment = vec![v1.clone(), v2.clone()];
+            return (true, Some(segment));
+        }
+    }
+
+    (false, None)
+}
 
 #[wasm_bindgen]
 pub fn is_circle_inside_polygon(circle_js: JsValue, polygon_path_js: JsValue) -> bool {
     let circle: Circle = serde_wasm_bindgen::from_value(circle_js).unwrap_throw();
-
     let hull_path: Vec<Coord> = serde_wasm_bindgen::from_value(polygon_path_js).unwrap_throw();
 
-    if hull_path.len() < 3 {
-        return true;
-    }
+    let (intersects, _) = circle_intersects_polygon(&circle, &hull_path);
+    intersects
+}
 
-    // Check if circle center is inside the hull
-    let circle_center = Point::new(circle.x, circle.y);
+#[wasm_bindgen]
+pub fn circle_intersecting_segment(circle_js: JsValue, polygon_path_js: JsValue)  {
+    let circle: Circle = serde_wasm_bindgen::from_value(circle_js).unwrap_throw();
+    let hull_path: Vec<Coord> = serde_wasm_bindgen::from_value(polygon_path_js).unwrap_throw();
 
-    if is_point_in_polygon(&circle_center, &hull_path) {
-        return true;
-    }
-
-    // Check if circle intersects with any hull edge
-    for i in 0..hull_path.len() {
-        let j = (i + 1) % hull_path.len();
-
-        let v1 = &hull_path[i];
-        let v2 = &hull_path[j];
-
-        if circle.intersects_line_segment(v1, v2) {
-            return true;
-        }
-    }
-
-    false
+    let (_, segment) = circle_intersects_polygon(&circle, &hull_path);
 }

@@ -4,14 +4,10 @@ import { Vector } from 'two.js/src/vector'
 
 import { Shape } from 'two.js/src/shape'
 import { Downloader, SvgExporter } from './export'
-import {
-    Hull,
-    type HullCircle,
-    InnerHullCircle,
-    OuterHullCircle,
-} from './hull'
+import { Hull, type HullCircle, InnerHullCircle, OuterHullCircle } from './hull'
 import { PressedKeys } from './pressedKeys'
 
+const DEFAULT_CIRCLE_RADIUS = 50
 const MIN_CIRCLE_RADIUS = 10
 const MAX_CIRCLE_RADIUS = 200
 
@@ -24,9 +20,9 @@ class Scene {
     activeHull: Hull | null = null
 
     selectedHull: Hull | null = null
-    selectedHullCircle: InnerHullCircle | null = null
+    selectedHullCircle: HullCircle | null = null
 
-    uncontainedCircles: Record<string, InnerHullCircle> = {}
+    uncontainedCircles: Record<string, HullCircle> = {}
 
     pressedKeys = new PressedKeys()
     mouseDownPosition: Vector | null = null
@@ -48,9 +44,9 @@ class Scene {
     addEventListeners() {
         this.rootEl.addEventListener('dblclick', ({ clientX, clientY }) => {
             if (this.pressedKeys.alt) {
-                this.addSubractiveHullCircle(clientX, clientY)
+                this.addOuterHullCircle(clientX, clientY)
             } else {
-                this.addAdditiveHullCircle(clientX, clientY)
+                this.addInnerHullCircle(clientX, clientY)
             }
         })
 
@@ -122,16 +118,7 @@ class Scene {
                     circleEl.classList.remove('selected')
                 }
 
-                if (this.activeHull) {
-                    if (
-                        !this.activeHull.hasCircle(
-                            this.selectedHullCircle.id
-                        ) &&
-                        this.selectedHullCircle.isInside(this.activeHull)
-                    ) {
-                        this.activeHull.addHullCircle(this.selectedHullCircle)
-                    }
-                }
+                this.placeHullCircle(this.selectedHullCircle)
 
                 this.selectedHullCircle = null
             }
@@ -169,14 +156,14 @@ class Scene {
         return hull
     }
 
-    addAdditiveHullCircle(x: number, y: number) {
-        const circle = this.two.makeCircle(x, y, 50)
+    addInnerHullCircle(x: number, y: number) {
+        const circle = this.two.makeCircle(x, y, DEFAULT_CIRCLE_RADIUS)
         const hullCircle = new InnerHullCircle(circle)
         this.addHullCircle(hullCircle)
     }
 
-    addSubractiveHullCircle(x: number, y: number) {
-        const circle = this.two.makeCircle(x, y, 50)
+    addOuterHullCircle(x: number, y: number) {
+        const circle = this.two.makeCircle(x, y, DEFAULT_CIRCLE_RADIUS)
         const hullCircle = new OuterHullCircle(circle)
         this.addHullCircle(hullCircle)
     }
@@ -193,7 +180,8 @@ class Scene {
         }
 
         if (
-            this.activeHull.circleCount < 3 ||
+            (hullCircle instanceof InnerHullCircle &&
+                this.activeHull.circleCount < 3) ||
             hullCircle.isInside(this.activeHull)
         ) {
             this.activeHull.addHullCircle(hullCircle)
@@ -219,14 +207,71 @@ class Scene {
         this.two.update()
     }
 
+    placeHullCircle(hullCircle: HullCircle) {
+        if (hullCircle instanceof OuterHullCircle) {
+            return
+        }
+
+        if (this.activeHull) {
+            if (
+                this.activeHull.circleCount < 3 ||
+                hullCircle.isInside(this.activeHull)
+            ) {
+                this.activeHull.addHullCircle(hullCircle)
+
+                if (this.uncontainedCircles[hullCircle.id]) {
+                    delete this.uncontainedCircles[hullCircle.id]
+                }
+
+                return;
+            }
+        }
+
+        this.uncontainedCircles[hullCircle.id] = hullCircle
+    }
+
     drawHull(hull: Hull) {
         hull.erase()
         hull.draw()
+    }
+
+    deleteHullCircle(hullCircle: HullCircle) {
+        this.two.remove(hullCircle.circle as unknown as Shape)
+
+        if (this.activeHull) {
+            const removedCircle = this.activeHull.removeHullCircle(hullCircle.id)
+
+            if (removedCircle) {
+                this.drawHull(this.activeHull)
+            }
+        }
+    }
+
+    deleteSelected() {
+        if (this.selectedHull) {
+            this.selectedHull.erase()
+            this.selectedHull = null
+        }
+
+        if (this.selectedHullCircle) {
+            this.deleteHullCircle(this.selectedHullCircle)
+            this.selectedHullCircle = null
+        }
+
+        this.two.update()
     }
 }
 
 init().then(() => {
     const scene = new Scene(document.body)
+
+    const deleteButton = document.getElementById('delete');
+
+    if (deleteButton) {
+        deleteButton.addEventListener('mouseup', () => {
+            scene.deleteSelected()
+        })
+    }
 
     const svgDownloader = new Downloader(new SvgExporter())
 
